@@ -165,22 +165,33 @@ if __name__ == '__main__':
 
             for idx, attachment in enumerate(message.attachments):
                 try:
-                    download_filename = filename_template.render(attachment_name=attachment.get('filename'),
+                    att_name = attachment.get('filename').replace(' ', '_').strip("\n").strip("\r").replace('(', '').replace(')', '')
+                    msg_id = message.message_id.replace('+', '').replace('<', '').replace('>', '').replace('@', '').replace(' ', '_').strip("\n").strip("\r")
+                    subject = subject.replace(' ', '_')
+                    download_filename = filename_template.render(attachment_name=att_name,
                                                                  attachment_idx=idx,
                                                                  subject=subject,
-                                                                 message_id=message.message_id,
+                                                                 message_id=msg_id,
                                                                  date=parsed_message_date,
                                                                  folder=folder)
-
+                    download_filename = download_filename.replace(' ', '_').strip("\n")
                     download_path = os.path.join(options.download_folder, download_filename)
+                    if download_path.find('.pdf') == -1:
+                        download_path += ".pdf";
                     os.makedirs(os.path.dirname(os.path.abspath(download_path)), exist_ok=True)
-                    logging.info("Downloading attachment '%s' to path %s", attachment.get('filename'), download_path)
+                    logging.info("Downloading attachment '%s' to path %s", att_name, download_path)
 
                     if os.path.isfile(download_path):
                         logging.warning("Overwriting file: '%s'", download_path)
 
-                    with open(download_path, "wb") as fp:
-                        fp.write(attachment.get('content').read())
+                    try:
+                        with open(download_path, "wb") as fp:
+                            fp.write(attachment.get('content').read())
+                    except OSError as e:
+                        logging.error('Error opening file: %s - except: %s', download_filename, str(e))
+                        sys.exit()
+
+
                 except UndefinedError as e:
                     logging.error('Filename template contains an undefined variable: %s', str(e))
                     logging.info('Logging out of: %s', options.host)
